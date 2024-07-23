@@ -1,9 +1,11 @@
 #!/bin/bash
+out=false
+# Default behaviour gives you a log in /var/log/custom_logs
+# To have a log in "~/out" use the -o|--out flag or, uncomment
+# the next line
+#out=true
 
-log_opt=true
-nolog_opt=false
-
-options=$(getopt -o nl --long no-log,log -n "Options" -- "$@")
+options=$(getopt -o o --long out -n "Options" -- "$@")
 if [ ! $? = 0 ]; then
     echo "Invalid options provided"
     exit 1
@@ -12,68 +14,76 @@ fi
 eval set -- "$options"
 while true; do
     case "$1" in
-    -l|--log) log_opt=true; shift ;;
-    -n|--no-log) nolog_opt=true; shift ;;
+    -o|--out) out=true; shift ;;
     --) shift ; break ;;
     *) echo "Unknown error" ; exit 1 ;;
     esac
 done
-
-if $log_opt && $nolog_opt; then
-    echo "Invalid options provided. You can only choose -l|--log or -n|--no-log"
-    echo "Logging (-l|--log), is the default behaviour."
-    exit 1
-fi
 
 if [ ! `whoami` = root ]; then
 	echo "This script must be run as root"
 	exit 0
 fi
 
-if [ $log_opt = $nolog_opt ]; then
-    echo "Incorrect options provided"
-    exit 1
+if [ "${SUDO_USER,,}" != "root" ] && [ ! -z "$SUDO_USER" ] && $out ; then
+    mkdir -p "/home/${SUDO_USER,,}/out"
+    exec > >(tee "/home/${SUDO_USER,,}/out/update.log") 2>&1
+else
+    mkdir -p "/var/log/custom_logs"
+    exec > >(tee "/var/log/custom_logs/update.log") 2>&1
 fi
 
-if $log_opt ; then
-    if [ "${SUDO_USER,,}" != "root" ] && [ ! -z "$SUDO_USER" ]; then
-	    mkdir -p "/home/${SUDO_USER,,}/out"
-	    exec > >(tee "/home/${SUDO_USER,,}/out/update") 2>&1
+printf "\n### Auto-update started: `date` ###\n"
+
+which apt-get > /dev/null
+if [ $? -eq 0 ]; then
+    printf "### apt update ###\n"
+    apt-get update
+fi
+
+which apt > /dev/null
+if [ $? -eq 0 ]; then
+    printf "\n### apt upgrade ###\n"
+    temp_var=$(echo `apt list --upgradable 2> /dev/null | grep / | cut -d "/" -f1 | tr "\n" " "`)
+    if [ ! -z "$temp_var" ]; then
+        apt-get install $temp_var -y
     else
-	    mkdir -p "/var/log/custom_logs"
-	    exec > >(tee "/var/log/custom_logs/update") 2>&1
+        echo "Nada que actualizar en apt"
     fi
 fi
 
-printf "### apt update ###\n"
-apt-get update
-
-printf "\n### apt upgrade ###\n"
-temp_var=$(echo `apt list --upgradable 2> /dev/null | grep / | cut -d "/" -f1 | tr "\n" " "`)
-if [ ! -z "$temp_var" ]; then
-    apt-get install $temp_var -y
-else
-    echo "Nada que actualizar en apt"
+which apt-get > /dev/null
+if [ $? -eq 0 ]; then
+    printf "\n### apt autoremove ###\n"
+    apt-get autoremove -y --purge
 fi
 
-printf "\n### apt autoremove ###\n"
-apt-get autoremove -y --purge
+which snap > /dev/null
+if [ $? -eq 0 ]; then
+    printf "\n### snap refresh ###\n"
+    snap refresh
+    snap changes | tail -2
+fi
 
-printf "\n### snap refresh ###\n"
-snap refresh
-snap changes | tail -2
+which flatpak > /dev/null
+if [ $? -eq 0 ]; then
+    printf  "\n### flatpak update ###\n"
+    flatpak update -y
+fi
 
-printf  "\n### flatpak update ###\n"
-flatpak update -y
-
-printf "\n### canonical-livepatch refresh ###\n"
-canonical-livepatch refresh
+which canonical-livepatch > /dev/null
+if [ $? -eq 0 ]; then
+    printf "\n### canonical-livepatch refresh ###\n"
+    canonical-livepatch refresh
+fi
 
 printf "\n### Auto-update finished: `date` ###\n"
-if [ "${SUDO_USER,,}" != "root" ] && [ ! -z "$SUDO_USER" ]; then
-    echo "-----See log in user/out/update-----"
+if [ "${SUDO_USER,,}" != "root" ] && [ ! -z "$SUDO_USER" ] && $out ; then
+    echo "-----See log in ~/out/update.log-----"
     printf "\n\n"
 else
-    echo "---See log in /var/log/custom_logs/update---"
+    echo "---See log in /var/log/custom_logs/update.log---"
     printf "\n\n"
 fi
+
+exit 0
