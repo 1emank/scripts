@@ -1,7 +1,9 @@
 #!/bin/bash
-#cd "the absolute route to the folder with your repositories" # So you don't need to pass arguments
+#cd "the absolute path to the folder with your repositories" # So you don't
+# need to pass arguments or to be in a specific folder.
+
 # To avoid unwanted behavior, make sure that the output of "ls" won't have
-# any unwanted files directories, either having the appropiate folder
+# any unwanted files or directories, either having the appropiate folder
 # structure, or modifying the next line with the appropiate arguments
 repos=($(ls))
 

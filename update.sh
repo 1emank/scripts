@@ -37,13 +37,13 @@ printf "\n### Auto-update started: `date` ###\n"
 
 which apt-get > /dev/null
 if [ $? -eq 0 ]; then
-    printf "### apt update ###\n"
+    printf "## apt update ##\n"
     apt-get update
 fi
 
 which apt > /dev/null
 if [ $? -eq 0 ]; then
-    printf "\n### apt upgrade ###\n"
+    printf "\n## apt upgrade ##\n"
     temp_var=$(echo `apt list --upgradable 2> /dev/null | grep / | cut -d "/" -f1 | tr "\n" " "`)
     if [ ! -z "$temp_var" ]; then
         apt-get install $temp_var -y
@@ -54,26 +54,26 @@ fi
 
 which apt-get > /dev/null
 if [ $? -eq 0 ]; then
-    printf "\n### apt autoremove ###\n"
+    printf "\n## apt autoremove ##\n"
     apt-get autoremove -y --purge
 fi
 
 which snap > /dev/null
 if [ $? -eq 0 ]; then
-    printf "\n### snap refresh ###\n"
+    printf "\n## snap refresh ##\n"
     snap refresh
     snap changes | tail -2
 fi
 
 which flatpak > /dev/null
 if [ $? -eq 0 ]; then
-    printf  "\n### flatpak update ###\n"
+    printf  "\n## flatpak update ##\n"
     flatpak update -y
 fi
 
 which canonical-livepatch > /dev/null
 if [ $? -eq 0 ]; then
-    printf "\n### canonical-livepatch refresh ###\n"
+    printf "\n## canonical-livepatch refresh ##\n"
     canonical-livepatch refresh
 fi
 
