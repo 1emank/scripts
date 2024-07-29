@@ -109,7 +109,7 @@ then
     printf "\n## flatpak update ##\n"
     flatpak update -y
     flatpak uninstall --unused --delete-data
-    flatpak cache --delete
+	rm -rfv /var/tmp/flatpak-cache-*
 fi
 
 if which canonical-livepatch > /dev/null
