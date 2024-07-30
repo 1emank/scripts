@@ -87,13 +87,10 @@ printf "\n### Auto-update started: %s ###\n" "$(date)"
 
 if which apt-get > /dev/null
 then
-    printf "## apt-get update ##\n"
+    printf "## apt update, full-upgrade and cleanup ## (using apt-get)\n"
     apt-get update
-    printf "\n## apt-get full-upgrade ##\n"
-    apt-get full-upgrade -y
-    printf "\n## apt-get autoremove ##\n"
+    apt-get dist-upgrade -y
     apt-get autoremove -y --purge
-    printf "\n## apt-get clean ##\n"
     apt-get clean
 fi
 
@@ -106,10 +103,10 @@ fi
 
 if which flatpak > /dev/null
 then
-    printf "\n## flatpak update ##\n"
+    printf "\n## flatpak update and cleanup ##\n"
     flatpak update -y
-    flatpak uninstall --unused --delete-data
-	rm -rfv /var/tmp/flatpak-cache-*
+    flatpak uninstall --unused --delete-data -y
+    rm -rfv /var/tmp/flatpak-cache-*
 fi
 
 if which canonical-livepatch > /dev/null
@@ -119,6 +116,6 @@ then
 fi
 
 printf "\n### Auto-update finished: %s ###\n" "$(date)"
-printf "See log in: %s/%s\n" "$log_dir" "$log_file"
+printf "See log in: %s/%s\n\n" "$log_dir" "$log_file"
 
 exit 0

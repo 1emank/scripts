@@ -82,24 +82,22 @@ then
 	exec > >(tee "$log_dir/$log_file") 2>&1
 fi
 
-format_number() { # in: raw number => out: formatted number
-	local times_divided=1
-	local number="$1"
-	local units=("K" "M" "G" "T" "P" "E")
-
-	while (( number > 1024 ))
-	do
-		times_divided=$(( times_divided + 1 ))
-		number=$(echo "$number / 1024" | bc)
-	done
-
-	echo "$number ${units[$times_divided]}B"
-}
+#format_number() { # in: raw number in K => out: formatted number
+#	local times_divided=1
+#	local number="$1"
+#	local units=("K" "M" "G" "T" "P" "E")
+#
+#	while (( number > 1024 ))
+#	do
+#		times_divided=$(( times_divided + 1 ))
+#		number=$(echo "$number / 1024" | bc)
+#	done
+#
+#	echo "$number ${units[$times_divided]}B"
+#}
 
 ###### ------------------------- BEGIN ------------------------- ######
-readarray -d " " disks < <(df -k --output=source | awk 'NR>1'| tr '\n' ' ')
-readarray -d " " sizes < <(df -k --output=size | awk 'NR>1'| tr '\n' ' ')
-readarray -d " " before < <(df -k --output=avail | awk 'NR>1'| tr '\n' ' ')
+before=$(df -h)
 
 printf "\n### Space liberation started %s ###\n" "$(date)"
 echo "WARN: If you dismount a storage device during the operation, the
@@ -150,7 +148,7 @@ fi
 if which flatpak > /dev/null
 then
 	printf "\n# flatpak cache #\n"
-    flatpak uninstall --unused --delete-data
+    flatpak uninstall --unused --delete-data -y
 	rm -rfv /var/tmp/flatpak-cache-*
 	echo "# Section Completed #"
 fi
@@ -178,31 +176,12 @@ rm -rfv "/home/${SUDO_USER,,}/.local/share/Trash/files/*"
 echo "# Section Completed #"
 
 printf "\n### Space liberation finished %s ###\n" "$(date)"
-
-readarray -d " " after < <(df -k --output=avail | awk 'NR>1'| tr '\n' ' ')
-gained_space=()
-
-for ((i = 1; i <= "${#disks[@]}"; i++))
-do
-    gained_space+=($(("${after[$i]}" - "${available[$i]}")))
-	i=$((i+1))
-done
-
-echo "                Space available"
-echo "Source  Size    Before  After   Gained"
-
-for ((i = 1; i <= "${#disks[@]}"; i++))
-do
-	if echo "${disks[$i]}" | grep /dev/sda
-	then
-		printf "%s %s %s %s %s\n" "${disks[$i]}" "$(format_number "${sizes[$i]}")" "$(format_number "${before[$i]}")" "$(format_number "${after[$i]}")" "$(format_number "${gained_space[$i]}")"
-	fi
-	i=$((i+1))
-done
+printf "\nBefore liberation\n%s" "$before"
+printf "\n\nAfter liberation\n%s" "$(df -h)"
 
 if $logging
 then
-	printf "\nSee log in: %s\n\n" "$log_route"
+	printf "\n\nSee log in: %s\n\n" "$log_route"
 fi
 
 exit 0
