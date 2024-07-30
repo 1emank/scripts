@@ -6,11 +6,7 @@ To use it ...
 Flags:
 	...
 
-Arguments:
-	...
-
 "
-
 # default_variables here (sometimes location too)
 
 if ! options=$(getopt -o h --long help -n 'Options' -- "$@")
@@ -28,7 +24,15 @@ while true; do
 	esac
 done
 
-# Check permissions and other stuff
+# Check permissions and that kind of stuff
+
+# Maybe other default variables if they are dependent on permissions
+
+# Start logging (if applicable)
+
+###### ----------------------- FUNCTIONS ----------------------- ######
+
+# Functions
 
 ###### ------------------------- BEGIN ------------------------- ######
 

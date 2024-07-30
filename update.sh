@@ -1,85 +1,81 @@
 #!/bin/bash
 help_message="This script updates the packages of your linux system.
 
-It uses the appropiate commands to update the packages of your package
-managers (apt, flatpak, etc). To run this script just run it as
-administrator. There's no need to pass any arguments.
+It uses the appropiate commands to update the packages of your package managers (apt, flatpak, etc). By default, a log is stored in \"/var/log/1emank/update.log\". Run this script as administrator.
 
-By default, a log is stored in \"/var/log/1emank/update.log\". You can
-change this with flags and arguments:
-./update.sh [ --no-log | --log [[--yes] custom_route]]
-./update.sh [-n | -l [[-y] custom_route]]
+    Options:
+./update.sh [ -h | --help ]
 
-	Flags:
--l, --log
-	Enables logging (default behaviour)
--n, --no-log
-	Disables logging
--y, --yes
-	If a custom route is provided, won't ask for confirmation
+    Flags:
 -h, --help
-	Shows this help
+    Shows this help
 
-	Arguments:
-custom_route
-	Route in which the log will be saved
+    Logging options:
+./update.sh [ -n | -l[<custom route> [-y]] ]
+./update.sh [ --no-log | --log[=<custom route> [--yes]] ]
 
-You can also change the defaults by editing variables of the script (so
-you don't need to pass arguments):
-- \"log_route\" - line 33 - defines the log location
-- \"logging\" - line 35 - enables or disables logging
+-l, --log[=<custom_route>]
+    Enables logging (default behaviour). Optionally, you can provide a custom route for the log file.
+-n, --no-log
+    Disables logging.
+-y, --yes
+    If a custom route is provided and the directory doesn't already exist, won't ask for confirmation.
+
+You can also change the defaults by editing variables of the script (so you don't need to pass arguments):
+- log_route - line 27 - defines the log location
+- logging - line 28 - enables or disables logging
 "
-# To change the log location, modify the next variable
 log_route="/var/log/1emank/update.log"
-# To disable logging, set the following variable to "false"
 logging=true
 
 custom_log=false
-sure=false
+sure_log=false
 
-options=$(getopt -o hlny --long help,log,no-log,yes -n 'Options' -- "$@")
+options=$(getopt -o hl::ny --long help,log::,no-log,yes -n 'Options' -- "$@")
 
 eval set -- "$options"
 while true; do
-	case "$1" in
-	-h|--help) echo "$help_message"; exit 0 ;;
-	-l|--log) logging=true; shift ;;
-	-n|--no-log) logging=false; shift;;
-	-y|--yes) sure=true; shift ;;
-	--) shift ; break ;;
-	*) echo "Unexpected error" ; exit 1 ;;
-	esac
+    case "$1" in
+    -h|--help)
+		echo "$help_message"; exit 0 ;;
+    -l|--log)
+		logging=true
+		log_route="${2:-$log_route}"
+		if [ -n "${2:-}" ]; then custom_log=true; fi
+		shift 2 ;;
+    -n|--no-log)
+		logging=false; shift;;
+    -y|--yes)
+		sure_log=true; shift ;;
+    --) shift ; break ;;
+    *) echo "Unexpected error" ; exit 1 ;;
+    esac
 done
 
 if [ "$(whoami)" != "root" ]
 then
-	echo "This script must be run as root. See help with the --help flag"
-	exit 1
+    echo "This script must be run as root. See help with the --help flag"
+    exit 1
 fi
 
-if [ -n "$1" ]
-then
-	log_route=$(readlink -m "$1")
-	custom_log=true
-fi
-
-log_dir="$(dirname "$log_route")"
-log_file="$(basename "$log_route")"
+log_route=$(readlink -m "$log_route") # If route is modified, you get
+log_dir="$(dirname "$log_route")"     # here the absolute value.
+log_file="$(basename "$log_route")"   # Otherwise it does nothing
 
 if $logging
 then
-	if $custom_log && ! $sure
-	then
-		echo "The following action will create a log in $log_route"
-		read -p "Do you want to continue? (y/n) " -n 1 -r choice
-		case "$choice" in
-			[yYsS]) ;;
-			[nN]) echo "Action cancelled by user"; exit ;;
-			*) echo "Invalid option"; exit 1 ;;
-    	esac
-	fi
-	mkdir -p "$log_dir"
-	exec > >(tee "$log_dir/$log_file") 2>&1
+    if $custom_log && ! $sure_log
+    then
+        echo "The following action will create a log in $log_route"
+        read -p "Do you want to continue? (y/n) " -n 1 -r choice
+        case "$choice" in
+            [yYsS]) ;;
+            [nN]) echo "Action cancelled by user"; exit ;;
+            *) echo "Invalid option"; exit 1 ;;
+        esac
+    fi
+    mkdir -p "$log_dir"
+    exec > >(tee "$log_dir/$log_file") 2>&1
 fi
 
 ###### ------------------------- BEGIN ------------------------- ######
