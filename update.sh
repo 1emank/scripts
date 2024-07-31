@@ -1,4 +1,5 @@
 #!/bin/bash
+is_directory_error="ERROR: The route you provided is a directory! Provide a valid route."
 help_message="This script updates the packages of your linux system.
 
 It uses the appropiate commands to update the packages of your package managers (apt, flatpak, etc). By default, a log is stored in \"/var/log/1emank/update.log\". Run this script as administrator.
@@ -12,25 +13,33 @@ It uses the appropiate commands to update the packages of your package managers 
 
     Logging options:
 ./update.sh [ -n | -l[<custom route> [-y]] ]
-./update.sh [ --no-log | --log[=<custom route> [--yes]] ]
+            [ --no-log | --log[=<custom route> [--yes]] ]
 
 -l, --log[=<custom_route>]
     Enables logging (default behaviour). Optionally, you can provide a custom route for the log file.
 -n, --no-log
     Disables logging.
 -y, --yes
-    If a custom route is provided and the directory doesn't already exist, won't ask for confirmation.
+    If a custom route is provided and the directory doesn't already exist, it usually asks for confirmation, with this flag it won't.
 
-You can also change the defaults by editing variables of the script (so you don't need to pass arguments):
-- log_route - line 27 - defines the log location
-- logging - line 28 - enables or disables logging
+    You can also change the defaults by editing variables of the script (so you don't need to pass arguments):
+logging - line 35
+    Enables or disables logging.
+sure_log - line 36
+    If true, when you provide a custom log route through the --log argument, it won't ask you for confirmation (false by default).
+log_route - line 37
+    Defines the log location.
 "
+###### -------------- USER CONFIGURABLE VARIABLES -------------- ######
+
+logging=true            # Default: true
+sure_log=false          # Default: false
 log_route="/var/log/1emank/update.log"
-logging=true
+# Default: "/var/log/1emank/update.log"
+
+###### ------------ USER CONFIGURABLE VARIABLES:END ------------ ######
 
 custom_log=false
-sure_log=false
-
 options=$(getopt -o hl::ny --long help,log::,no-log,yes -n 'Options' -- "$@")
 
 eval set -- "$options"
@@ -58,13 +67,12 @@ then
     exit 1
 fi
 
-log_route=$(readlink -m "$log_route") # If route is modified, you get
-log_dir="$(dirname "$log_route")"     # here the absolute value.
-log_file="$(basename "$log_route")"   # Otherwise it does nothing
+# If route is modified, you get here the absolute value. Otherwise it does nothing.
+log_route=$(readlink -m "$log_route")
 
 if $logging
 then
-    if $custom_log && ! $sure_log
+    if $custom_log && ! $sure_log && [ ! -d "$log_route" ]
     then
         echo "The following action will create a log in $log_route"
         read -p "Do you want to continue? (y/n) " -n 1 -r choice
@@ -73,9 +81,13 @@ then
             [nN]) echo "Action cancelled by user"; exit ;;
             *) echo "Invalid option"; exit 1 ;;
         esac
+    elif $custom_log && ! $sure_log && [ -d "$log_route" ]
+    then
+        echo "$is_directory_error"
+        exit 1
     fi
-    mkdir -p "$log_dir"
-    exec > >(tee "$log_dir/$log_file") 2>&1
+    mkdir -p "$(dirname "$log_route")"
+    exec > >(tee -a "$log_route") 2>&1
 fi
 
 ###### ------------------------- BEGIN ------------------------- ######
@@ -83,7 +95,7 @@ printf "\n### Auto-update started: %s ###\n" "$(date)"
 
 if which apt-get > /dev/null
 then
-    printf "## apt update, full-upgrade and cleanup ## (using apt-get)\n"
+    printf "\n## apt update, full-upgrade and cleanup ## (using apt-get)\n"
     apt-get update
     apt-get dist-upgrade -y
     apt-get autoremove -y --purge
@@ -111,7 +123,7 @@ then
     canonical-livepatch refresh
 fi
 
-printf "\n### Auto-update finished: %s ###\n" "$(date)"
-printf "See log in: %s/%s\n\n" "$log_dir" "$log_file"
+printf "\n### Auto-update finished: %s ###\n\n" "$(date)"
+if $logging; then printf "See log in: %s\n\n" "$log_route"; fi
 
 exit 0

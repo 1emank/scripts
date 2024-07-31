@@ -7,7 +7,13 @@ Flags:
 	...
 
 "
-# default_variables here (sometimes location too)
+###### -------------- USER CONFIGURABLE VARIABLES -------------- ######
+
+# Configurable default variables
+
+###### ------------ USER CONFIGURABLE VARIABLES:END ------------ ######
+
+# Other default_variables here
 
 if ! options=$(getopt -o h --long help -n 'Options' -- "$@")
 then
