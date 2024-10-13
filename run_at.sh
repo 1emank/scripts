@@ -2,7 +2,7 @@
 
 ### Unfinished ###
 echo 'Unfinished script'
-exit
+exit 255
 ##################
 
 

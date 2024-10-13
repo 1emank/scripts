@@ -1,8 +1,7 @@
 #!/bin/bash
-is_directory_error="ERROR: The route you provided is a directory! Provide a valid route."
 help_message="This script liberates space in your local disk. 
 
-It does this by reducing or deleting log files, cache files, and other unnecesary files. By default, a log is stored in \"/var/log/1emank/free_space.log\". Run this script as administrator.
+It does this by reducing or deleting log files, cache files, and other unnecesary files. A log is stored in \"/var/log/1emank/free_space.log\". Run this script as administrator.
 
     Options:
 ./free_space.sh [-f|-r] [-s<bytes>] [-u] [-w<disable translated>]
@@ -22,53 +21,21 @@ It does this by reducing or deleting log files, cache files, and other unnecesar
     BE CAREFUL. Deletes, recursively, ALL (instead of some) \".old\" files inside the user's \$HOME.
 -w, --word=WORD
     To get the disabled packages from snap, this script finds a word in the output of \"snap list --all\". In English this word is \"disabled\". In case your snap client isn't in English or Spanish, you can specify the word with this argument.
-
-    Logging options:
-./free_space.sh [other options] [-n | -l[custom_route [-y]] ]
-                [other options] [--no-log | --log[=custom_route [--yes]] ]
-
--l, --log[=<custom_route>]
-    Enables logging (default behaviour). Optionally, you can provide a custom route for the log file.
--n, --no-log
-    Disables logging.
--y, --yes
-    If a custom route is provided and the directory doesn't already exist, it usually asks for confirmation, with this flag it won't.
-
-    You can also change the defaults by editing variables of the script (so you don't need to pass arguments):
-snap_disabled_word - line 58
-    Specifies --word (default by \$LANG)
-def_dize - line 59
-    Specifies --size in bytes (1048576 by default, equivalent to 1 MB).
-full_depletion - line 60
-    Equivalent to --full-depletion if true and to --reduction if false (false by default).
-user_home - line 61
-    Equivalent to --user-home if true (false, by default).
-
-logging - line 63
-    Enables or disables logging.
-sure_log - line 64
-    If true, when you provide a custom log route through the --log argument, it won't ask you for confirmation (false by default).
-log_route - line 65
-    Defines the log location.
 "
-if [[ "$LANG" == "es"* ]]; then snap_disabled_word="desactivado"
-else snap_disabled_word="disabled" ;fi
-###### -------------- USER CONFIGURABLE VARIABLES -------------- ######
+if [[ "$LANG" == "es"* ]]; then
+    snap_disabled_word="desactivado"
+else
+    snap_disabled_word="disabled"
+fi
 
 #snap_disabled_word=""  # No default value
-def_size=1048576        # Default: 1048576
-full_depletion=false    # Default: false
-user_home=false         # Default: false
+def_size=1048576
+full_depletion=false
+user_home=false
 
-logging=true            # Default: true
-sure_log=false          # Default: false
 log_route="/var/log/1emank/free_space.log"
-#Default: "/var/log/1emank/free_space.log"
 
-###### ------------ USER CONFIGURABLE VARIABLES:END ------------ ######
-
-custom_log=false
-options=$(getopt -o hl::nys: --long help,log::,no-log,yes,size: -n 'Options' -- "$@")
+options=$(getopt -o hfrs:uw: --long help,full-depletion,size:,user-home,word: -n 'Options' -- "$@")
 
 eval set -- "$options"
 while true; do
@@ -77,25 +44,18 @@ while true; do
         echo "$help_message"; exit 0 ;;
     -f|--full-depletion)
         full_depletion=true; shift;;
-    -l|--log)
-        logging=true
-        log_route="${2:-$log_route}"
-		if [ -n "${2:-}" ]; then custom_log=true; fi
-		shift 2;;
-    -n|--no-log)
-        logging=false; shift;;
     -r|--reduction)
         full_depletion=false; shift;;
-    -y|--yes)
-        sure_log=true; shift;;
     -s|--size)
         def_size="$2"; shift 2;;
     -u|--user-home)
         user_home=true; shift;;
     -w|--word)
         snap_disabled_word="$2"; shift 2;;
-    --) shift ; break ;;
-    *) echo "Unexpected error" ; exit 1 ;;
+    --)
+        shift ; break ;;
+    *)
+        echo "Unexpected error" ; exit 1 ;;
     esac
 done
 
@@ -109,45 +69,10 @@ if ! sudo_home=$(getent passwd "$SUDO_USER" | cut -d: -f6)
 then sudo_home=""
 fi
 
-# If route is modified, you get here the absolute value. Otherwise it does nothing.
-log_route=$(readlink -m "$log_route")
-
-if $logging
-then
-    if $custom_log && ! $sure_log && [ ! -d "$log_route" ]
-    then
-        echo "The following action will create a log in $log_route"
-        read -p "Do you want to continue? (y/n) " -n 1 -r choice
-        case "$choice" in
-            [yYsS]) ;;
-            [nN]) echo "Action cancelled by user"; exit ;;
-            *) echo "Invalid option"; exit 1 ;;
-        esac
-    elif $custom_log && ! $sure_log && [ -d "$log_route" ]
-    then
-        echo "$is_directory_error"
-        exit 1
-    fi
-    mkdir -p "$(dirname "$log_route")"
-    exec > >(tee -a "$log_route") 2>&1
-fi
+mkdir -p "$(dirname "$log_route")"
+exec > >(tee -a "$log_route") 2>&1
 
 ###### ----------------------- FUNCTIONS ----------------------- ######
-
-# This function is for a the final report, not implemented still
-#format_number() { # in: raw number in K => out: formatted number
-#    local times_divided=1
-#    local number="$1"
-#    local units=("K" "M" "G" "T" "P" "E")
-#
-#    while (( number > 1024 ))
-#    do
-#        times_divided=$(( times_divided + 1 ))
-#        number=$(echo "$number / 1024" | bc)
-#    done
-#
-#    echo "$number ${units[$times_divided]}B"
-#}
 
 function reduce_file_type () { # location , extension, size
     local location="$1"
@@ -163,7 +88,7 @@ function reduce_file_type () { # location , extension, size
     then
         for file in "${to_clean[@]}"
         do
-            if (("$(stat --printf="%s" "$file")" < size))
+            if (("$(stat --printf="%s" "$file")" <= size)) || [ -d "$file" ]
             then continue
             fi
 
@@ -254,6 +179,10 @@ if "$user_home" && [ -d "${sudo_home:-?}" ] ; then
     echo "# Section Completed #"
 fi
 
+printf "\n# Reducing tmp files #\n"
+reduce_file_type "/tmp/" "*"
+echo "# Section Completed #"
+
 if [ -d "${sudo_home:-?}" ] || [ -d "/root/.local/share/Trash/files" ]
 then
     printf "\n# Emptying trash can #\n"
@@ -268,6 +197,6 @@ printf "\nBefore liberation\n%s" "$before"
 printf "\n\nAfter liberation\n%s" "$(df -h)"
 
 printf "\n\n### END OF SCRIPT ###\n\n"
-if $logging; then printf "See log in: %s\n\n" "$log_route"; fi
+printf "See log in: %s\n\n" "$log_route"
 
 exit 0

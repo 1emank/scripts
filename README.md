@@ -8,9 +8,7 @@ Small scripts and applications to make managing some computer tasks quick and ea
 - run_at: (Not functional still!) Takes a script and makes it so it runs at shutdown, reboot or start.
 - update: automatic update for many package managers, to update everything in one order.
 
----
-### Contact
+## Contact
 
-Carlos González
-
-carlos.a.gb95@gmail.com
+### Carlos González
+### For any matter write me to: carlos.a.gb95@gmail.com
