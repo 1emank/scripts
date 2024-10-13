@@ -1,6 +1,7 @@
 #!/bin/bash
 
 echo "You only need to run this script once."
+
 target_file="/etc/logrotate.d/1emank"
 if [ -f "$target_file" ]
 then
@@ -8,20 +9,16 @@ then
     exit 1
 fi
 
-### BEGIN
-#/var/log/1emank/*.log {
-#  rotate 5
-#  monthly
-#  minsize 10485760
-#  compress
-#  missingok
-#  notifempty
-#}
-### END
+text='/var/log/1emank/*.log {
+  rotate 5
+  monthly
+  minsize 10485760
+  compress
+  missingok
+  notifempty
+}'
 
-sed -n '/### BEGIN/,/### END/ {
-    /### BEGIN/!{/### END/!{s/^#//;p}}
-}' "$0" > "$target_file"
+echo "$text" > "$target_file"
 
 if [ -f "$target_file" ]
 then
