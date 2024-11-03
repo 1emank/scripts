@@ -6,6 +6,11 @@ help_message="This script updates the packages of your linux system.
     Options:
 . update.sh [ -h | --help ]
 
+    Exit status:
+        0    OK
+	1    If you don't run it as root
+	2    If some error happened
+
     A log is stored in \"/var/log/1emank/update.log\". Set up log rotation manually or use the \"1emank_logrorate.sh\" script from this repository."
 
 log_route="/var/log/1emank/update.log"
@@ -24,34 +29,40 @@ then
     exit 1
 fi
 
+track_ec() {
+    if [ $? -ne 0 ] || [ $exit_code -ne 0 ]; then
+	exit_code=2
+    fi
+}
+
 mkdir -p "$(dirname "$log_route")"
 exec > >(tee -a "$log_route") 2>&1
 
 ###### ------------------------- BEGIN ------------------------- ######
 printf "### START %s\n" "$(date)"
 
-if which apt-get > /dev/null
-then
+exit_code=0
+trap 'track_ec' BEBUG
+if which apt-get > /dev/null; then
     echo "# apt #"
-    apt_out="$(\
-      apt-get -U dist-upgrade -yqq | tee /dev/tty;
-      apt-get autoremove -yqq --purge | tee /dev/tty;
-      apt-get clean | tee /dev/tty \
-    )"
-    if [ -z "$apt_out" ]; then
+    apt-get update -qq
+    upgradable=($(apt list --upgradable -qq 2>/dev/null | awk -F 'NR>1 {print $1}'))
+    if [ "${#upgradable[@]}" -ne 0 ]; then
+        apt-get install ${upgradable[@]} -yqq
+        apt-get autoremove -yqq --purge
+        apt-get clean
+    else
         echo "Nothing changed."
     fi
 fi
 
-if which snap > /dev/null
-then
+if which snap > /dev/null; then
     echo "# snap #"
     snap refresh
     snap changes | tail -2
 fi
 
-if which flatpak > /dev/null
-then
+if which flatpak > /dev/null; then
     echo "# flatpak #"
     printf "Update result:"
     flatpak update --noninteractive -y
@@ -59,13 +70,13 @@ then
     rm -rfv /var/tmp/flatpak-cache-*
 fi
 
-if which canonical-livepatch > /dev/null
-then
+if which canonical-livepatch > /dev/null; then
     printf "# canonical-livepatch #"
     canonical-livepatch refresh
 fi
 
+trap - DEBUG
 printf "### END %s\n" "$(date)"
 printf "\nSee log in: %s\n\n" "$log_route" > /dev/tty
 
-exit 0
+exit $exit_code
